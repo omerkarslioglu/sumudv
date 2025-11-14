@@ -1,3 +1,5 @@
+`timescale 1ns/10ps
+
 module core 
   import core_pkg::*;
 (
@@ -30,5 +32,10 @@ module core
       pc <= pc + WordByteOffset;
     end
   end
+
+  function automatic logic [31:0] fetch(register_t register);
+    // register zero is wired to constant 0.
+    return register == zero ? '0 : registers[register];
+  endfunction
 
 endmodule
