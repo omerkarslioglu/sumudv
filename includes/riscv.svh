@@ -48,8 +48,10 @@ typedef enum logic [4:0] {
   BGE,
   BLTU,
   BGEU,
+
   LOAD,
   STORE,
+
   ADD,
   SUB,
   SLT,
@@ -60,8 +62,10 @@ typedef enum logic [4:0] {
   SL,
   SRL,
   SRA,
+
   FENCE,
   FENCE_I,
+
   ECALL,
   EBREAK,
   MRET,
