@@ -34,7 +34,7 @@ module core
   logic [XLen-1:0] lsu_result;
 
   always_comb begin
-    instr_addr_o = pc;
+    instr_addr_o = is_branch_taken ? decoded_instr.immediate : pc;
 
     rs1_data = fetch(decoded_instr.rs1);
     rs2_data = fetch(decoded_instr.rs2);
@@ -56,12 +56,13 @@ module core
 
     lsu_data = decode_instr.memory_read ? rs2_data : data_i;
     lsu_result = execute_lsu(lsu_data, decode_instr.memory_width, decode_instr.memory_read_unsigned);
-    data_o = (decode_instr.memory_write) ? lsu_result : '0;
+    data_o = decode_instr.memory_write ? lsu_result : '0;
   end
 
   always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
       pc <= BootAddr;
+      registers.zero <= '0;
     end else begin
       pc <= pc + WordByteOffset;
       if (decoded_instr.enable_wb) registers[decoded_instr.rd] <= (decoded_instr.memory_read) ? lsu_result : alu_result;
@@ -98,7 +99,7 @@ module core
     endcase 
   endfunction
 
-  function automatic logic [XLen-1:0] execute_lsu (logic [XLen-1:0] data, mem_width_t mem_width, logic is_unsigned); // todo: complete it
+  function automatic logic [XLen-1:0] execute_lsu (logic [XLen-1:0] data, mem_width_t mem_width, logic is_unsigned);
     logic [XLen-1:0] lsu_result;
     case (mem_width)
       B: begin
@@ -119,6 +120,22 @@ module core
       default: lsu_result = '0;
     endcase
     return lsu_result;
+  endfunction
+
+  function automatic logic is_branch_taken (operation_t op, logic [XLen-1:0] rs1_data, logic [XLen-1:0] rs2_data); // todo: branch instr will be done
+    case (op)
+      BEQ: return (rs1_data == rs2_data);
+      BNE: return (rs1_data != rs2_data);
+      BLT: return ($signed(rs1_data) < $signed(rs2_data));
+      BGE: return ($signed(rs1_data) >= $signed(rs2_data));
+      BLTU: return (rs1_data < rs2_data);
+      BGEU: return (rs1_data >= rs2_data);
+      default: return 0;
+    endcase
+  endfunction
+
+  function automatic logic [AddrLen-1:0] calculate_branch_target (logic [AddrLen-1:0] pc, logic [31:0] immediate);
+    return pc + immediate;
   endfunction
 
 endmodule
