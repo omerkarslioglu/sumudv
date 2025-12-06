@@ -15,7 +15,7 @@ module tb_module;
   logic     mem_width_t   data_width_o;
 
   core #(
-    parameter type mem_width_t = mem_width_t
+    parameter type mem_res_width_t = mem_width_t
   ) u_core (
     .clk_i (clk_i),
     .rst_ni (rst_ni),

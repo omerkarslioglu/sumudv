@@ -3,24 +3,24 @@
 module core 
   import core_pkg::*;
 #(
-  parameter type mem_width_t = logic
+  parameter type mem_res_width_t = logic
 )(
-  input                   clk_i,
-  input                   rst_ni,
+  input                       clk_i,
+  input                       rst_ni,
   // L1 instruction cache port
-  input     [InsXLen-1:0] instr_i,
-  output    [AddrLen-1:0] instr_addr_o,
+  input     [InsXLen-1    :0] instr_i,
+  output    [AddrLen-1    :0] instr_addr_o,
   // L1 data cache port
-  input     [   XLen-1:0] data_i,
-  output                  wr_data_en_o,
-  output    [   XLen-1:0] data_o,
-  output    [AddrLen-1:0] data_addr_o,
-  output    mem_width_t   data_width_o // it's for stores
+  input     [   XLen-1    :0] data_i,
+  output                      wr_data_en_o,
+  output    [   XLen-1    :0] data_o,
+  output    [AddrLen-1    :0] data_addr_o,
+  output    mem_res_width_t   data_width_o // it's for stores
 );
 
   `include "riscv.svh"
 
-  localparam unsigned int WordByteOffset = 4;
+  localparam int unsigned WordByteOffset = 4;
 
   register_t registers;
   logic [AddrLen-1:0] pc;
@@ -70,8 +70,8 @@ module core
   end
 
   decoder #(
-    .instr_t(instr_t),
-    .operation_t(operation_t)
+    .decoder_instr_t(instr_t),
+    .decoder_operation_t(operation_t)
   ) u_decoder (
     .instr_i(instr_i),
     .pc_i(pc),

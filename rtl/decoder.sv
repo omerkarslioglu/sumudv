@@ -1,21 +1,23 @@
 module decoder 
   import core_pkg::*;
 #(
-  parameter type instr_t = logic,
-  parameter type operation_t = logic
+  parameter type decoder_instr_t = logic,
+  parameter type decoder_operation_t = logic
 )(
   input              [InsXLen-1:0] instr_i,
   input              [AddrLen-1:0] pc_i,
-  output instr_t                   instr_o,
+  output decoder_instr_t           instr_o,
   output logic                     error_o
 );
     
-    alsways_comb begin
+    `include "riscv.svh"
+
+    always_comb begin
         instr_o = decode_instr(instr_i, pc_i);
         error_o = (instr_o.op == INVALID);
     end
 
-    function automatic instr_t decode_instr(logic [InsXLen-1:0] instr, logic [AddrLen-1:0] pc);
+    function automatic decoder_instr_t decode_instr(logic [InsXLen-1:0] instr, logic [AddrLen-1:0] pc);
         // registers, funct7 and funct3 are in the same place in every instruction type
         decode_instr.rd  = register_t'(instr`rd);
         decode_instr.rs1 = register_t'(instr`rs1);
@@ -51,8 +53,7 @@ module decoder
         decode_instr.pc = pc;
     endfunction
 
-
-    function automatic operation_t decode_opcode(logic [31:0] instr);
+    function automatic decoder_operation_t decode_opcode(logic [31:0] instr);
         logic [11:0] funct12 = instr`funct12;
         logic [2:0]  funct3  = instr`funct3;
         logic [4:0]  rs1 = instr`rs1;
