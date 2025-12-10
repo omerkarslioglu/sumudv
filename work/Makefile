@@ -18,7 +18,7 @@ WORK_LIB := work
 VLOG_FLAGS := -sv
 VLOG_FLAGS += +incdir+$(INC_DIR)
 VLOG_FLAGS += -work $(WORK_LIB)
-VLOG_FLAGS += -timescale=1ns/1ps
+VLOG_FLAGS += -timescale=1ns/100ps
 
 # Simulation flags
 VSIM_FLAGS := -voptargs=+acc
