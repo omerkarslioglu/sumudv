@@ -51,6 +51,8 @@ module decoder
                               && instr`opcode != OPC_STORE;
 
         decode_instr.pc = pc;
+
+        return decode_instr;
     endfunction
 
     function automatic decoder_operation_t decode_opcode(logic [31:0] instr);

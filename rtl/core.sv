@@ -5,17 +5,17 @@ module core
 #(
   parameter type mem_res_width_t = logic
 )(
-  input                       clk_i,
-  input                       rst_ni,
+  input                                    clk_i,
+  input                                    rst_ni,
   // L1 instruction cache port
-  input     [InsXLen-1    :0] instr_i,
-  output    [AddrLen-1    :0] instr_addr_o,
+  input                  [InsXLen-1    :0] instr_i,
+  output logic           [AddrLen-1    :0] instr_addr_o,
   // L1 data cache port
-  input     [   XLen-1    :0] data_i,
-  output                      wr_data_en_o,
-  output    [   XLen-1    :0] data_o,
-  output    [AddrLen-1    :0] data_addr_o,
-  output    mem_res_width_t   data_width_o // it's for stores
+  input                  [   XLen-1    :0] data_i,
+  output logic                             wr_data_en_o,
+  output logic           [   XLen-1    :0] data_o,
+  output logic           [AddrLen-1    :0] data_addr_o,
+  output mem_res_width_t                   data_width_o // it's for stores
 );
 
   `include "riscv.svh"
@@ -29,12 +29,13 @@ module core
   logic [XLen-1:0] rs1_data;
   logic [XLen-1:0] rs2_data;
   logic [XLen-1:0] alu_second_operand;
-  logic [Xlen-1:0] alu_result;
+  logic [XLen-1:0] alu_result;
   logic wr_reg_en;
   logic [XLen-1:0] lsu_result;
+  logic [XLen-1:0] lsu_data;
 
   always_comb begin
-    instr_addr_o = is_branch_taken ? decoded_instr.immediate : pc;
+//    instr_addr_o = is_branch_taken ? decoded_instr.immediate : pc;
 
     rs1_data = fetch(decoded_instr.rs1);
     rs2_data = fetch(decoded_instr.rs2);
@@ -62,7 +63,7 @@ module core
   always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
       pc <= BootAddr;
-      registers.zero <= '0;
+      registers[0] <= '0;
     end else begin
       pc <= pc + WordByteOffset;
       if (decoded_instr.enable_wb) registers[decoded_instr.rd] <= (decoded_instr.memory_read) ? lsu_result : alu_result;
@@ -83,7 +84,7 @@ module core
     return register == zero ? '0 : registers[register];
   endfunction
 
-  function automatic logic [XLexn-1:0] execute_alu (logic [XLexn-1:0] data_1, logic [XLen-1:0] data_2, operation_t op);
+  function automatic logic [XLen-1:0] execute_alu (logic [XLen-1:0] data_1, logic [XLen-1:0] data_2, operation_t op);
     case (op)
       ADD: return data_1 + data_2;
       SUB: return data_1 - data_2;
