@@ -1,10 +1,8 @@
 `timescale 1ns/100ps
 
-module tb_module
+module tb_top
   import core_pkg::*;
 ();
-
-  `include "riscv.svh"
 
   logic clk_i = 1;
   logic rst_ni;
@@ -16,9 +14,7 @@ module tb_module
   logic [AddrLen-1:0] data_addr_o;
   mem_width_t         data_width_o;
 
-  core #(
-    .mem_res_width_t(mem_width_t)
-  ) u_core (
+  core u_core (
     .clk_i (clk_i),
     .rst_ni (rst_ni),
     .instr_i (instr_i),

@@ -2,9 +2,7 @@
 
 module core 
   import core_pkg::*;
-#(
-  parameter type mem_res_width_t = logic
-)(
+(
   input                                    clk_i,
   input                                    rst_ni,
   // L1 instruction cache port
@@ -15,10 +13,8 @@ module core
   output logic                             wr_data_en_o,
   output logic           [   XLen-1    :0] data_o,
   output logic           [AddrLen-1    :0] data_addr_o,
-  output mem_res_width_t                   data_width_o // it's for stores
+  output mem_width_t                       data_width_o // it's for stores
 );
-
-  `include "riscv.svh"
 
   localparam int unsigned WordByteOffset = 4;
 
@@ -44,10 +40,10 @@ module core
     alu_result = execute_alu(rs1_data, alu_second_operand, decoded_instr.op);
 
     data_width_o = decoded_instr.memory_width;
-    if (decode_instr.memory_read) begin
-      data_addr_o = rs1_data + decode_instr.immediate;
+    if (decoded_instr.memory_read) begin
+      data_addr_o = rs1_data + decoded_instr.immediate;
       wr_data_en_o = 0;
-    end else if (decode_instr.memory_write) begin
+    end else if (decoded_instr.memory_write) begin
       data_addr_o = rs1_data;
       wr_data_en_o = 1;
     end else begin
@@ -55,9 +51,9 @@ module core
       wr_data_en_o = 0;
     end
 
-    lsu_data = decode_instr.memory_read ? rs2_data : data_i;
-    lsu_result = execute_lsu(lsu_data, decode_instr.memory_width, decode_instr.memory_read_unsigned);
-    data_o = decode_instr.memory_write ? lsu_result : '0;
+    lsu_data = decoded_instr.memory_read ? rs2_data : data_i;
+    lsu_result = execute_lsu(lsu_data, decoded_instr.memory_width, decoded_instr.memory_read_unsigned);
+    data_o = decoded_instr.memory_write ? lsu_result : '0;
   end
 
   always_ff @(posedge clk_i) begin
@@ -70,10 +66,7 @@ module core
     end
   end
 
-  decoder #(
-    .decoder_instr_t(instr_t),
-    .decoder_operation_t(operation_t)
-  ) u_decoder (
+  decoder u_decoder (
     .instr_i(instr_i),
     .pc_i(pc),
     .instr_o(decoded_instr),
