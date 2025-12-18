@@ -28,4 +28,8 @@ module tb_top
 
   initial forever #1 clk_i = ~clk_i;
 
+  initial begin
+    rst_ni = 0;
+  end
+
 endmodule

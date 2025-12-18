@@ -31,7 +31,7 @@ module core
   logic [XLen-1:0] lsu_data;
 
   always_comb begin
-//    instr_addr_o = is_branch_taken ? decoded_instr.immediate : pc;
+    instr_addr_o = is_branch_taken(decoded_instr.op, rs1_data, rs2_data) ? (decoded_instr.immediate + pc) : pc;
 
     rs1_data = fetch(decoded_instr.rs1);
     rs2_data = fetch(decoded_instr.rs2);
