@@ -30,6 +30,13 @@ module tb_top
 
   initial begin
     rst_ni = 0;
+    data_i = 'haaaa_aaaa;
+    @(posedge clk_i);
+    instr_i = 'h0;
+    @(posedge clk_i);
+    instr_i = 'h0;
+    #100;
+    $finish;
   end
 
 endmodule

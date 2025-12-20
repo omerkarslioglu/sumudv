@@ -31,7 +31,7 @@ module core
   logic [XLen-1:0] lsu_data;
 
   always_comb begin
-    instr_addr_o = is_branch_taken(decoded_instr.op, rs1_data, rs2_data) ? (decoded_instr.immediate + pc) : pc;
+    instr_addr_o = pc;
 
     rs1_data = fetch(decoded_instr.rs1);
     rs2_data = fetch(decoded_instr.rs2);
@@ -61,8 +61,25 @@ module core
       pc <= BootAddr;
       registers[0] <= '0;
     end else begin
-      pc <= pc + WordByteOffset;
-      if (decoded_instr.enable_wb) registers[decoded_instr.rd] <= (decoded_instr.memory_read) ? lsu_result : alu_result;
+      if (instr_i'opcode == OPC_BRANCH && is_branch_taken(decoded_instr.op, rs1_data, rs2_data)) begin
+        pc <= calculate_branch_target(pc, decoded_instr.immediate);
+      end else if (decoded_instr.opcode == JAL) begin
+        pc <= pc + decoded_instr.immediate;
+      end else if (decoded_instr.opcode == JALR) begin
+        pc <= (rs1_data + decoded_instr.immediate) & ~32'b1;
+      end else begin
+        pc <= pc + WordByteOffset;
+      end
+
+      if (decoded_instr.enable_wb) begin
+        if (instr_i'opcode == OPC_JAL || instr_i'opcode == OPC_JALR) begin
+          registers[decoded_instr.rd] <= pc + WordByteOffset;
+        end else if (instr_i'opcode == OPC_LUI) begin
+          registers[decoded_instr.rd] <= pc + decoded_instr.immediate;
+        end else begin
+          registers[decoded_instr.rd] <= (decoded_instr.memory_read) ? lsu_result : alu_result;
+        end
+      end
     end
   end
 
