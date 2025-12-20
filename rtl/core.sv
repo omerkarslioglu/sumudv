@@ -72,10 +72,12 @@ module core
       end
 
       if (decoded_instr.enable_wb) begin
-        if (instr_i'opcode == OPC_JAL || instr_i'opcode == OPC_JALR) begin
+        if (decoded_instr.opcode == JAL || decoded_instr.opcode == JALR) begin
           registers[decoded_instr.rd] <= pc + WordByteOffset;
-        end else if (instr_i'opcode == OPC_LUI) begin
-          registers[decoded_instr.rd] <= pc + decoded_instr.immediate;
+        end else if (decoded_instr.opcode == LUI) begin
+          registers[decoded_instr.rd] <= decoded_instr.immediate << 12;
+        end else if (decoded_instr.opcode == AUIPC) begin // add upper immediate to pc
+          registers[decoded_instr.rd] <= pc + (decoded_instr.immediate << 12);
         end else begin
           registers[decoded_instr.rd] <= (decoded_instr.memory_read) ? lsu_result : alu_result;
         end
