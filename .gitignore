@@ -42,4 +42,4 @@
 
 /work/work*
 /work/transcript*
-/work/vsim.wlf
+/work/*.wlf
