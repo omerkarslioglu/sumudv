@@ -13,12 +13,15 @@ module core
   output logic                             wr_data_en_o,
   output logic           [   XLen-1    :0] data_o,
   output logic           [AddrLen-1    :0] data_addr_o,
-  output mem_width_t                       data_width_o // it's for stores
+  output mem_width_t                       data_width_o, // it's for stores
+  output logic           [   XLen-1    :0] error_o
 );
+
+  `define opcode [6 : 2]
 
   localparam int unsigned WordByteOffset = 4;
 
-  register_t registers;
+  logic [31:0][31:0] registers;
   logic [AddrLen-1:0] pc;
   instr_t decoded_instr;
   logic decode_error;
@@ -60,24 +63,29 @@ module core
     if (!rst_ni) begin
       pc <= BootAddr;
       registers[0] <= '0;
+      error_o <= 1'b0;
     end else begin
-      if (instr_i'opcode == OPC_BRANCH && is_branch_taken(decoded_instr.op, rs1_data, rs2_data)) begin
+      error_o <= 1'b0 || decode_error;
+
+      if (instr_i`opcode == OPC_BRANCH && is_branch_taken(decoded_instr.op, rs1_data, rs2_data)) begin
         pc <= calculate_branch_target(pc, decoded_instr.immediate);
-      end else if (decoded_instr.opcode == JAL) begin
+      end else if (decoded_instr.op == JAL) begin
         pc <= pc + decoded_instr.immediate;
-      end else if (decoded_instr.opcode == JALR) begin
+      end else if (decoded_instr.op == JALR) begin
         pc <= (rs1_data + decoded_instr.immediate) & ~32'b1;
       end else begin
         pc <= pc + WordByteOffset;
       end
 
       if (decoded_instr.enable_wb) begin
-        if (decoded_instr.opcode == JAL || decoded_instr.opcode == JALR) begin
+        if (decoded_instr.rd == zero) begin
+          error_o <= 1'b1; // x0 is always 0
+        end else if (decoded_instr.op == JAL || decoded_instr.op == JALR) begin
           registers[decoded_instr.rd] <= pc + WordByteOffset;
-        end else if (decoded_instr.opcode == LUI) begin
-          registers[decoded_instr.rd] <= decoded_instr.immediate << 12;
-        end else if (decoded_instr.opcode == AUIPC) begin // add upper immediate to pc
-          registers[decoded_instr.rd] <= pc + (decoded_instr.immediate << 12);
+        end else if (decoded_instr.op == LUI) begin
+          registers[decoded_instr.rd] <= decoded_instr.immediate;
+        end else if (decoded_instr.op == AUIPC) begin // add upper immediate to pc
+          registers[decoded_instr.rd] <= pc + decoded_instr.immediate;
         end else begin
           registers[decoded_instr.rd] <= (decoded_instr.memory_read) ? lsu_result : alu_result;
         end
