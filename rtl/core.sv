@@ -54,7 +54,7 @@ module core
       wr_data_en_o = 0;
     end
 
-    lsu_data = decoded_instr.memory_read ? rs2_data : data_i;
+    lsu_data = decoded_instr.memory_read ? data_i : rs2_data;
     lsu_result = execute_lsu(lsu_data, decoded_instr.memory_width, decoded_instr.memory_read_unsigned);
     data_o = decoded_instr.memory_write ? lsu_result : '0;
   end

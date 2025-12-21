@@ -33,11 +33,10 @@ module tb_top
   logic [11:0] s_imm;
   logic [12:1] b_imm;
   logic [2:0] load_funct3 [5];
-  logic [2:0] opimm_funct3 [6];
-  logic [2:0] store_funct3 [3];
   logic [2:0] branch_funct3 [6];
   op_funct_t op_functs [10];
   logic [AddrLen-1:0] pc_prev;
+  logic [31:0] br_imm;
 
   core u_core (
     .clk_i (clk_i),
@@ -53,6 +52,10 @@ module tb_top
   );
 
   initial forever #1 clk_i = ~clk_i;
+
+  always_comb begin
+    br_imm = {{19{instr_i[31]}}, instr_i[31], instr_i[7], instr_i[30:25], instr_i[11:8], 1'b0};
+  end
 
   always_ff @(posedge clk_i) begin
     pc_prev = u_core.pc;
@@ -153,80 +156,270 @@ module tb_top
         $fatal("LOAD rd failed! funct3=%b rd=x%0d got=%0h", instr_i`funct3, instr_i`rd, u_core.registers[instr_i`rd]);
     end
 
-    opimm_funct3[0] = 3'b000; // ADDI
-    opimm_funct3[1] = 3'b010; // SLTI
-    opimm_funct3[2] = 3'b011; // SLTIU
-    opimm_funct3[3] = 3'b100; // XORI
-    opimm_funct3[4] = 3'b110; // ORI
-    opimm_funct3[5] = 3'b111; // ANDI
-    foreach (opimm_funct3[i]) begin // ADDI, SLTI, SLTIU, XORI, ORI, ANDI
-      @(posedge clk_i);
-      instr_i = '0;
-      instr_i`opext   = 2'b11;
-      instr_i`opcode  = OPC_OP_IMM;
-      instr_i`funct3  = opimm_funct3[i];
-      instr_i`rd      = $urandom_range(1,31);
-      instr_i`rs1     = $urandom_range(0,31);
-      instr_i[31:20]  = $urandom;
-    end
-    
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_OP_IMM;
+    instr_i`funct3  = 3'b000; // ADDI
+    instr_i`rd      = 1;
+    instr_i`rs1     = 2;
+    instr_i[31:20]  = $urandom;
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("ADDI PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === (u_core.registers[instr_i`rs1] + {{20{instr_i[31]}}, instr_i[31:20]})) else // rd = rs1 + imm
+      $fatal("ADDI failed! rd=x%0d rs1=x%0d imm=%0h exp=%0h got=%0h", instr_i`rd, instr_i`rs1, {{20{instr_i[31]}}, instr_i[31:20]}, (u_core.registers[instr_i`rs1] + {{20{instr_i[31]}}, instr_i[31:20]}), u_core.registers[instr_i`rd]);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_OP_IMM;
+    instr_i`funct3  = 3'b010; // SLTI
+    instr_i`rd      = 1;
+    instr_i`rs1     = 2;
+    instr_i[31:20]  = $urandom;
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("SLTI PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === ($signed(u_core.registers[instr_i`rs1]) < $signed({{20{instr_i[31]}}, instr_i[31:20]}))) else // rd = rs1 < imm (signed)
+      $fatal("SLTI failed! rd=x%0d rs1=x%0d imm=%0h exp=%0h got=%0h", instr_i`rd, instr_i`rs1, {{20{instr_i[31]}}, instr_i[31:20]}, ($signed(u_core.registers[instr_i`rs1]) < $signed({{20{instr_i[31]}}, instr_i[31:20]})), u_core.registers[instr_i`rd]);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_OP_IMM;
+    instr_i`funct3  = 3'b011; // SLTIU
+    instr_i`rd      = 1;
+    instr_i`rs1     = 2;
+    instr_i[31:20]  = $urandom;
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("SLTIU PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === (u_core.registers[instr_i`rs1] < {{20{instr_i[31]}}, instr_i[31:20]})) else // rd = rs1 < imm (unsigned)
+      $fatal("SLTIU failed! rd=x%0d rs1=x%0d imm=%0h exp=%0h got=%0h", instr_i`rd, instr_i`rs1, {{20{instr_i[31]}}, instr_i[31:20]}, (u_core.registers[instr_i`rs1] < {{20{instr_i[31]}}, instr_i[31:20]}), u_core.registers[instr_i`rd]);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_OP_IMM;
+    instr_i`funct3  = 3'b100; // XORI
+    instr_i`rd      = 1;
+    instr_i`rs1     = 2;
+    instr_i[31:20]  = $urandom;
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("XORI PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === (u_core.registers[instr_i`rs1] ^ {{20{instr_i[31]}}, instr_i[31:20]})) else // rd = rs1 ^ imm
+      $fatal("XORI failed! rd=x%0d rs1=x%0d imm=%0h exp=%0h got=%0h", instr_i`rd, instr_i`rs1, {{20{instr_i[31]}}, instr_i[31:20]}, (u_core.registers[instr_i`rs1] ^ {{20{instr_i[31]}}, instr_i[31:20]}), u_core.registers[instr_i`rd]);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_OP_IMM;
+    instr_i`funct3  = 3'b110; // ORI
+    instr_i`rd      = 1;
+    instr_i`rs1     = 2;
+    instr_i[31:20]  = $urandom;
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("ORI PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === (u_core.registers[instr_i`rs1] | {{20{instr_i[31]}}, instr_i[31:20]})) else // rd = rs1 | imm
+      $fatal("ORI failed! rd=x%0d rs1=x%0d imm=%0h exp=%0h got=%0h", instr_i`rd, instr_i`rs1, {{20{instr_i[31]}}, instr_i[31:20]}, (u_core.registers[instr_i`rs1] | {{20{instr_i[31]}}, instr_i[31:20]}), u_core.registers[instr_i`rd]);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_OP_IMM;
+    instr_i`funct3  = 3'b111; // ANDI
+    instr_i`rd      = 1;
+    instr_i`rs1     = 2;
+    instr_i[31:20]  = $urandom;
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("ANDI PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === (u_core.registers[instr_i`rs1] & {{20{instr_i[31]}}, instr_i[31:20]})) else // rd = rs1 & imm
+      $fatal("ANDI failed! rd=x%0d rs1=x%0d imm=%0h exp=%0h got=%0h", instr_i`rd, instr_i`rs1, {{20{instr_i[31]}}, instr_i[31:20]}, (u_core.registers[instr_i`rs1] & {{20{instr_i[31]}}, instr_i[31:20]}), u_core.registers[instr_i`rd]);
+
     @(posedge clk_i); // SLLI
     instr_i = '0;
     instr_i`opext   = 2'b11;
     instr_i`opcode  = OPC_OP_IMM;
     instr_i`funct3  = 3'b001;
-    instr_i`rd      = $urandom_range(1,31);
-    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rd      = 1;
+    instr_i`rs1     = 2;
     instr_i[24:20]  = $urandom_range(0,31);
     instr_i[31:25]  = 7'b0000000;
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("SLLI PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === (u_core.registers[instr_i`rs1] << instr_i[24:20])) else // rd = rs1 << shamt
+      $fatal("SLLI failed! rd=x%0d rs1=x%0d shamt=%0d exp=%0h got=%0h", instr_i`rd, instr_i`rs1, instr_i[24:20], (u_core.registers[instr_i`rs1] << instr_i[24:20]), u_core.registers[instr_i`rd]);
 
     @(posedge clk_i); // SRLI
     instr_i[31:25]  = 7'b0000000;
 
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("SRLI PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === (u_core.registers[instr_i`rs1] >> instr_i[24:20])) else // rd = rs1 >> shamt (logical)
+      $fatal("SRLI failed! rd=x%0d rs1=x%0d shamt=%0d exp=%0h got=%0h", instr_i`rd, instr_i`rs1, instr_i[24:20], (u_core.registers[instr_i`rs1] >> instr_i[24:20]), u_core.registers[instr_i`rd]);
+
     @(posedge clk_i); // SRAI
     instr_i[31:25]  = 7'b0100000;
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (pc_prev + 32'd4)) else // PC = PC + 4
+      $fatal("SRAI PC failed! exp=%0h got=%0h", (pc_prev + 32'd4), u_core.pc);
+    assert (u_core.registers[instr_i`rd] === ($signed(u_core.registers[instr_i`rs1]) >>> instr_i[24:20])) else // rd = rs1 >>> shamt (arithmetic)
+      $fatal("SRAI failed! rd=x%0d rs1=x%0d shamt=%0d exp=%0h got=%0h", instr_i`rd, instr_i`rs1, instr_i[24:20], ($signed(u_core.registers[instr_i`rs1]) >>> instr_i[24:20]), u_core.registers[instr_i`rd]);
 
-    store_funct3[0] = 3'b000; // SB
-    store_funct3[1] = 3'b001; // SH
-    store_funct3[2] = 3'b010; // SW
-    s_imm = $urandom;
-    foreach (store_funct3[i]) begin
-      @(posedge clk_i);
-      instr_i = '0;
-      instr_i`opext   = 2'b11;
-      instr_i`opcode  = OPC_STORE;
-      instr_i`funct3  = store_funct3[i];
-      instr_i`rs1     = $urandom_range(0,31);
-      instr_i`rs2     = $urandom_range(0,31);
-      instr_i[11:7]   = s_imm[4:0];
-      instr_i[31:25]  = s_imm[11:5];
-    end
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_STORE;
+    instr_i`funct3  = 3'b000; // SB
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[11:7]   = s_imm[4:0];
+    instr_i[31:25]  = s_imm[11:5];
+    @(posedge clk_i); #1;
+    assert (data_o[7:0] === u_core.registers[instr_i`rs2][7:0]) else // SB
+      $fatal("SB data failed! rs2=x%0d exp=%0h got=%0h", instr_i`rs2, u_core.registers[instr_i`rs2][7:0], data_o[7:0]);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_STORE;
+    instr_i`funct3  = 3'b001; // SH
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[11:7]   = s_imm[4:0];
+    instr_i[31:25]  = s_imm[11:5];
+    @(posedge clk_i); #1;
+    assert (data_o[15:0] === u_core.registers[instr_i`rs2][15:0]) else // SH
+      $fatal("SH data failed! rs2=x%0d exp=%0h got=%0h", instr_i`rs2, u_core.registers[instr_i`rs2][15:0], data_o[15:0]);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_STORE;
+    instr_i`funct3  = 3'b010; // SW
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[11:7]   = s_imm[4:0];
+    instr_i[31:25]  = s_imm[11:5];
+    @(posedge clk_i); #1;
+    assert (data_o === u_core.registers[instr_i`rs2]) else // SW
+      $fatal("SW data failed! rs2=x%0d exp=%0h got=%0h", instr_i`rs2, u_core.registers[instr_i`rs2], data_o);
 
     b_imm = $urandom;
-    branch_funct3[0] = 3'b000; // BEQ
-    branch_funct3[1] = 3'b001; // BNE
-    branch_funct3[2] = 3'b100; // BLT
-    branch_funct3[3] = 3'b101; // BGE
-    branch_funct3[4] = 3'b110; // BLTU
-    branch_funct3[5] = 3'b111; // BGEU
-    foreach (branch_funct3[i]) begin
-      @(posedge clk_i);
-      instr_i = '0;
-      instr_i`opext   = 2'b11;
-      instr_i`opcode  = OPC_BRANCH;
-      instr_i`funct3  = branch_funct3[i];
-      instr_i`rs1     = $urandom_range(0,31);
-      instr_i`rs2     = $urandom_range(0,31);
-      instr_i[31]     = b_imm[12];
-      instr_i[30:25]  = b_imm[10:5];
-      instr_i[11:8]   = b_imm[4:1];
-      instr_i[7]      = b_imm[11];
-    end
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_BRANCH;
+    instr_i`funct3  = 3'b000; // BEQ
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[31]     = b_imm[12];
+    instr_i[30:25]  = b_imm[10:5];
+    instr_i[11:8]   = b_imm[4:1];
+    instr_i[7]      = b_imm[11];
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === ((u_core.registers[instr_i`rs1] == u_core.registers[instr_i`rs2]) ? (pc_prev + br_imm) : (pc_prev + 32'd4))) else // BEQ PC
+      $fatal("BEQ PC failed! rs1=x%0d rs2=x%0d imm=%0h exp=%0h got=%0h", instr_i`rs1, instr_i`rs2, br_imm, ((u_core.registers[instr_i`rs1] == u_core.registers[instr_i`rs2]) ? (pc_prev + br_imm) : (pc_prev + 32'd4)), u_core.pc);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_BRANCH;
+    instr_i`funct3  = 3'b001; // BNE
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[31]     = b_imm[12];
+    instr_i[30:25]  = b_imm[10:5];
+    instr_i[11:8]   = b_imm[4:1];
+    instr_i[7]      = b_imm[11];
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc ===((u_core.registers[instr_i`rs1] !=  u_core.registers[instr_i`rs2]) ? (pc_prev + br_imm) : (pc_prev + 32'd4))) else // BNE PC
+      $fatal("BNE PC failed! rs1=x%0d rs2=x%0d imm=%0h exp=%0h got=%0h", instr_i`rs1, instr_i`rs2, br_imm, ((u_core.registers[instr_i`rs1] != u_core.registers[instr_i`rs2]) ? (pc_prev + br_imm) : (pc_prev + 32'd4)), u_core.pc);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_BRANCH;
+    instr_i`funct3  = 3'b100; // BLT
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[31]     = b_imm[12];
+    instr_i[30:25]  = b_imm[10:5];
+    instr_i[11:8]   = b_imm[4:1];
+    instr_i[7]      = b_imm[11];
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (($signed(u_core.registers[instr_i`rs1]) < $signed(u_core.registers[instr_i`rs2])) ? (pc_prev + br_imm) : (pc_prev + 32'd4))) else // BLT PC
+      $fatal("BLT PC failed! rs1=x%0d rs2=x%0d imm=%0h exp=%0h got=%0h", instr_i`rs1, instr_i`rs2, br_imm, (($signed(u_core.registers[instr_i`rs1]) < $signed(u_core.registers[instr_i`rs2])) ? (pc_prev + br_imm) : (pc_prev + 32'd4)), u_core.pc);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_BRANCH;
+    instr_i`funct3  = 3'b101; // BGE
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[31]     = b_imm[12];
+    instr_i[30:25]  = b_imm[10:5];
+    instr_i[11:8]   = b_imm[4:1];
+    instr_i[7]      = b_imm[11];
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === (($signed(u_core.registers[instr_i`rs1]) >= $signed(u_core.registers[instr_i`rs2])) ? (pc_prev + br_imm) : (pc_prev + 32'd4))) else // BGE PC
+      $fatal("BGE PC failed! rs1=x%0d rs2=x%0d imm=%0h exp=%0h got=%0h", instr_i`rs1, instr_i`rs2, br_imm, (($signed(u_core.registers[instr_i`rs1]) >= $signed(u_core.registers[instr_i`rs2])) ? (pc_prev + br_imm) : (pc_prev + 32'd4)), u_core.pc);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_BRANCH;
+    instr_i`funct3  = 3'b110; // BLTU
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[31]     = b_imm[12];
+    instr_i[30:25]  = b_imm[10:5];
+    instr_i[11:8]   = b_imm[4:1];
+    instr_i[7]      = b_imm[11];
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc === ((u_core.registers[instr_i`rs1] <   u_core.registers[instr_i`rs2]) ? (pc_prev + br_imm) : (pc_prev + 32'd4))) else // BLTU PC
+      $fatal("BLTU PC failed! rs1=x%0d rs2=x%0d imm=%0h exp=%0h got=%0h", instr_i`rs1, instr_i`rs2, br_imm, ((u_core.registers[instr_i`rs1] < u_core.registers[instr_i`rs2]) ? (pc_prev + br_imm) : (pc_prev + 32'd4)), u_core.pc);
+
+    @(posedge clk_i);
+    instr_i = '0;
+    instr_i`opext   = 2'b11;
+    instr_i`opcode  = OPC_BRANCH;
+    instr_i`funct3  = 3'b111; // BGEU
+    instr_i`rs1     = $urandom_range(0,31);
+    instr_i`rs2     = $urandom_range(0,31);
+    instr_i[31]     = b_imm[12];
+    instr_i[30:25]  = b_imm[10:5];
+    instr_i[11:8]   = b_imm[4:1];
+    instr_i[7]      = b_imm[11];
+
+    @(posedge clk_i); #1;
+    assert (u_core.pc ===((u_core.registers[instr_i`rs1] >= u_core.registers[instr_i`rs2]) ? (pc_prev + br_imm) : (pc_prev + 32'd4))) else // BGEU PC
+      $fatal("BGEU PC failed! rs1=x%0d rs2=x%0d imm=%0h exp=%0h got=%0h", instr_i`rs1, instr_i`rs2, br_imm, ((u_core.registers[instr_i`rs1] >= u_core.registers[instr_i`rs2]) ? (pc_prev + br_imm) : (pc_prev + 32'd4)), u_core.pc);
 
     op_functs[0] = '{7'b0000000, 3'b000}; // ADD
     op_functs[1] = '{7'b0100000, 3'b000}; // SUB
     op_functs[2] = '{7'b0000000, 3'b001}; // SLL
-    op_functs[3] = '{7'b0000000, 3'b010}; // SLT
+    op_functs[3] = '{7'b0000000, 3'b111}; // SLT
     op_functs[4] = '{7'b0000000, 3'b011}; // SLTU
     op_functs[5] = '{7'b0000000, 3'b100}; // XOR
     op_functs[6] = '{7'b0000000, 3'b101}; // SRL
