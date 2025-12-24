@@ -18,7 +18,7 @@ WORK_LIB := work
 VLOG_FLAGS := -sv
 VLOG_FLAGS += +incdir+$(INC_DIR)
 VLOG_FLAGS += -work $(WORK_LIB)
-VLOG_FLAGS += -timescale=1ns/1ps
+VLOG_FLAGS += -timescale=1ns/100ps
 
 # Simulation flags
 VSIM_FLAGS := -voptargs=+acc
@@ -31,12 +31,6 @@ ifeq ($(GUI), 1)
     VSIM_FLAGS := -voptargs=+acc
     VSIM_FLAGS += -do "add wave -recursive /*; run -all"
 endif
-
-# Source files (in compilation order)
-PKG_FILES := $(PKG_DIR)/core_pkg.sv
-RTL_FILES := $(RTL_DIR)/decoder.sv \
-             $(RTL_DIR)/core.sv
-DV_FILES := $(DV_DIR)/tb_top.sv
 
 # Top-level testbench module
 TB_TOP := tb_top
@@ -53,13 +47,10 @@ create_lib:
 
 # Compile all source files
 .PHONY: compile
+.PHONY: compile
 compile: create_lib
-	@echo "Compiling package files..."
-	@$(VLOG) $(VLOG_FLAGS) $(PKG_FILES)
-	@echo "Compiling RTL files..."
-	@$(VLOG) $(VLOG_FLAGS) $(RTL_FILES)
-	@echo "Compiling testbench files..."
-	@$(VLOG) $(VLOG_FLAGS) $(DV_FILES)
+	@echo "Compiling design from files.f ..."
+	@$(VLOG) $(VLOG_FLAGS) -f $(WORK_DIR)/files.f
 	@echo "Compilation complete!"
 
 # Run simulation

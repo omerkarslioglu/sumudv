@@ -1,12 +1,3 @@
-`define opext  [1 : 0]
-`define opcode [6 : 2]
-`define rd     [11: 7]
-`define funct3 [14:12]
-`define rs1    [19:15]
-`define rs2    [24:20]
-`define funct7 [31:25]
-`define funct12 [31:20]
-
 // RISC-V opcodes
 typedef enum logic [4:0] {
   OPC_LUI      = 5'b01101,
@@ -76,13 +67,6 @@ typedef enum logic [4:0] {
   INVALID
 } operation_t;
 
-// memory operation widths
-typedef enum logic [1:0] {
-  B = 2'b00,
-  H = 2'b01,
-  W = 2'b10
-} mem_width_t;
-
 // machine mode funct12 codes
 typedef enum logic [11:0] {
   F12_ECALL  = 12'b000000000000,
@@ -90,6 +74,13 @@ typedef enum logic [11:0] {
   F12_MRET   = 12'b001100000010,
   F12_WFI    = 12'b000100000101
 } funct12_t;
+
+// memory operation widths
+typedef enum logic [1:0] {
+  B = 2'b00,
+  H = 2'b01,
+  W = 2'b10
+} mem_width_t;
 
 // holds all the information about a decoded instruction
 typedef struct packed {

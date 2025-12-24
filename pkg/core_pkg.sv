@@ -1,8 +1,10 @@
 package core_pkg;
 
-  parameter unsigned int XLen = 32;
-  parameter unsigned int InsXLen = 32;
-  parameter unsigned int AddrLen = 32;
-  parameter unsigned int BootAddr = 80_000_000;
+  parameter int unsigned XLen = 32;
+  parameter int unsigned InsXLen = 32;
+  parameter int unsigned AddrLen = 32;
+  parameter int unsigned BootAddr = 'h80_000_000;
+
+  `include "riscv.svh"
 
 endpackage

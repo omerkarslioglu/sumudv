@@ -41,3 +41,5 @@
 *.dwo
 
 /work/work*
+/work/transcript*
+/work/*.wlf

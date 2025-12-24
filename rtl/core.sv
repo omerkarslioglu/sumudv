@@ -2,36 +2,36 @@
 
 module core 
   import core_pkg::*;
-#(
-  parameter type mem_width_t = logic
-)(
-  input                   clk_i,
-  input                   rst_ni,
+(
+  input                                    clk_i,
+  input                                    rst_ni,
   // L1 instruction cache port
-  input     [InsXLen-1:0] instr_i,
-  output    [AddrLen-1:0] instr_addr_o,
+  input                  [InsXLen-1    :0] instr_i,
+  output logic           [AddrLen-1    :0] instr_addr_o,
   // L1 data cache port
-  input     [   XLen-1:0] data_i,
-  output                  wr_data_en_o,
-  output    [   XLen-1:0] data_o,
-  output    [AddrLen-1:0] data_addr_o,
-  output    mem_width_t   data_width_o // it's for stores
+  input                  [   XLen-1    :0] data_i,
+  output logic                             wr_data_en_o,
+  output logic           [   XLen-1    :0] data_o,
+  output logic           [AddrLen-1    :0] data_addr_o,
+  output mem_width_t                       data_width_o, // it's for stores
+  output logic           [   XLen-1    :0] error_o
 );
 
-  `include "riscv.svh"
+  `define opcode [6 : 2]
 
-  localparam unsigned int WordByteOffset = 4;
+  localparam int unsigned WordByteOffset = 4;
 
-  register_t registers;
+  logic [31:0][31:0] registers;
   logic [AddrLen-1:0] pc;
   instr_t decoded_instr;
   logic decode_error;
   logic [XLen-1:0] rs1_data;
   logic [XLen-1:0] rs2_data;
   logic [XLen-1:0] alu_second_operand;
-  logic [Xlen-1:0] alu_result;
+  logic [XLen-1:0] alu_result;
   logic wr_reg_en;
   logic [XLen-1:0] lsu_result;
+  logic [XLen-1:0] lsu_data;
 
   always_comb begin
     instr_addr_o = pc;
@@ -43,10 +43,10 @@ module core
     alu_result = execute_alu(rs1_data, alu_second_operand, decoded_instr.op);
 
     data_width_o = decoded_instr.memory_width;
-    if (decode_instr.memory_read) begin
-      data_addr_o = rs1_data + decode_instr.immediate;
+    if (decoded_instr.memory_read) begin
+      data_addr_o = rs1_data + decoded_instr.immediate;
       wr_data_en_o = 0;
-    end else if (decode_instr.memory_write) begin
+    end else if (decoded_instr.memory_write) begin
       data_addr_o = rs1_data;
       wr_data_en_o = 1;
     end else begin
@@ -54,24 +54,46 @@ module core
       wr_data_en_o = 0;
     end
 
-    lsu_data = decode_instr.memory_read ? rs2_data : data_i;
-    lsu_result = execute_lsu(lsu_data, decode_instr.memory_width, decode_instr.memory_read_unsigned);
-    data_o = (decode_instr.memory_write) ? lsu_result : '0;
+    lsu_data = decoded_instr.memory_read ? data_i : rs2_data;
+    lsu_result = execute_lsu(lsu_data, decoded_instr.memory_width, decoded_instr.memory_read_unsigned);
+    data_o = decoded_instr.memory_write ? lsu_result : '0;
   end
 
   always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
       pc <= BootAddr;
+      registers[0] <= '0;
+      error_o <= 1'b0;
     end else begin
-      pc <= pc + WordByteOffset;
-      if (decoded_instr.enable_wb) registers[decoded_instr.rd] <= (decoded_instr.memory_read) ? lsu_result : alu_result;
+      error_o <= 1'b0 || decode_error;
+
+      if (instr_i`opcode == OPC_BRANCH && is_branch_taken(decoded_instr.op, rs1_data, rs2_data)) begin
+        pc <= calculate_branch_target(pc, decoded_instr.immediate);
+      end else if (decoded_instr.op == JAL) begin
+        pc <= pc + decoded_instr.immediate;
+      end else if (decoded_instr.op == JALR) begin
+        pc <= (rs1_data + decoded_instr.immediate) & ~32'b1;
+      end else begin
+        pc <= pc + WordByteOffset;
+      end
+
+      if (decoded_instr.enable_wb) begin
+        if (decoded_instr.rd == zero) begin
+          error_o <= 1'b1; // x0 is always 0
+        end else if (decoded_instr.op == JAL || decoded_instr.op == JALR) begin
+          registers[decoded_instr.rd] <= pc + WordByteOffset;
+        end else if (decoded_instr.op == LUI) begin
+          registers[decoded_instr.rd] <= decoded_instr.immediate;
+        end else if (decoded_instr.op == AUIPC) begin // add upper immediate to pc
+          registers[decoded_instr.rd] <= pc + decoded_instr.immediate;
+        end else begin
+          registers[decoded_instr.rd] <= (decoded_instr.memory_read) ? lsu_result : alu_result;
+        end
+      end
     end
   end
 
-  decoder #(
-    .instr_t(instr_t),
-    .operation_t(operation_t)
-  ) u_decoder (
+  decoder u_decoder (
     .instr_i(instr_i),
     .pc_i(pc),
     .instr_o(decoded_instr),
@@ -82,7 +104,7 @@ module core
     return register == zero ? '0 : registers[register];
   endfunction
 
-  function automatic logic [XLexn-1:0] execute_alu (logic [XLexn-1:0] data_1, logic [XLen-1:0] data_2, operation_t op);
+  function automatic logic [XLen-1:0] execute_alu (logic [XLen-1:0] data_1, logic [XLen-1:0] data_2, operation_t op);
     case (op)
       ADD: return data_1 + data_2;
       SUB: return data_1 - data_2;
@@ -98,7 +120,7 @@ module core
     endcase 
   endfunction
 
-  function automatic logic [XLen-1:0] execute_lsu (logic [XLen-1:0] data, mem_width_t mem_width, logic is_unsigned); // todo: complete it
+  function automatic logic [XLen-1:0] execute_lsu (logic [XLen-1:0] data, mem_width_t mem_width, logic is_unsigned);
     logic [XLen-1:0] lsu_result;
     case (mem_width)
       B: begin
@@ -119,6 +141,22 @@ module core
       default: lsu_result = '0;
     endcase
     return lsu_result;
+  endfunction
+
+  function automatic logic is_branch_taken (operation_t op, logic [XLen-1:0] rs1_data, logic [XLen-1:0] rs2_data); // todo: branch instr will be done
+    case (op)
+      BEQ: return (rs1_data == rs2_data);
+      BNE: return (rs1_data != rs2_data);
+      BLT: return ($signed(rs1_data) < $signed(rs2_data));
+      BGE: return ($signed(rs1_data) >= $signed(rs2_data));
+      BLTU: return (rs1_data < rs2_data);
+      BGEU: return (rs1_data >= rs2_data);
+      default: return 0;
+    endcase
+  endfunction
+
+  function automatic logic [AddrLen-1:0] calculate_branch_target (logic [AddrLen-1:0] pc, logic [31:0] immediate);
+    return pc + immediate;
   endfunction
 
 endmodule
