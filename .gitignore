@@ -1,45 +1,111 @@
-# Prerequisites
+# --- compilers / objects ---
 *.d
-
-# Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
-
-# Precompiled Headers
 *.gch
 *.pch
-
-# Linker files
 *.ilk
-
-# Debugger Files
 *.pdb
-
-# Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
-
-# Fortran module files
 *.mod
 *.smod
-
-# Compiled Static libraries
 *.lai
 *.la
 *.a
 *.lib
-
-# Executables
 *.exe
 *.out
 *.app
-
-# debug information files
 *.dwo
 
-/work/work*
-/work/transcript*
-/work/*.wlf
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- editors / OS ---
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# --- packages / local installs (do not push) ---
+*.deb
+*.rpm
+
+# --- Vivado / Vitis (project trees + logs) ---
+.Xil/
+*.jou
+*.log
+*.str
+*.backup.jou
+*.backup.log
+*.pb
+*.dcp
+*.ltx
+*.xpr
+*.xsa
+*.hdf
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.gen/
+*.sim/
+*.srcs/sources_1/bd/**/ipshared/
+vivado_pid*.str
+hs_err_pid*
+
+# FPGA project working dirs (regenerate with make)
+fpga/**/vivado/
+fpga/**/*.log
+fpga/**/*.jou
+
+# Generated bitstreams / handoff (keep .gitkeep)
+fpga/**/bitstream/*
+!fpga/**/bitstream/.gitkeep
+
+# --- Verilator / sim ---
+work/obj_dir*/
+work/work*/
+work/transcript*
+work/*.wlf
+work/*.vcd
+work/*.fst
+work/*.vstf
+work/*.log
+*.vcd
+*.fst
+*.wlf
+*.vstf
+*.vvp
+*.vpi
+
+# --- firmware builds ---
+sw/build/
+sw/**/build/
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+!bench/results/.gitkeep
+
+# --- bench outputs (keep example + placeholder) ---
+bench/results/*
+!bench/results/.gitkeep
+!bench/results/example.json
+
+# --- DOOM / redistributed game assets ---
+*.wad
+*.WAD
+*.iwad
+*.IWAD

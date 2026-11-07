@@ -1,0 +1,17 @@
+{
+  "git_sha": "local",
+  "config": "sim-bram-ideal",
+  "fmax_mhz": 50,
+  "bp_type": "btb+2bit",
+  "cache": "bypass",
+  "date": "2026-10-18",
+  "metrics": {
+    "coremark_mhz": 1.8,
+    "dmips_mhz": 0.85,
+    "ipc": 0.55,
+    "bp_pct": 82,
+    "icache_hit_pct": "N/A",
+    "dcache_hit_pct": "N/A",
+    "doom_fps": "N/A"
+  }
+}
