@@ -28,7 +28,7 @@ typedef enum logic [4:0] {
 } register_t;
 
 // internal, decoded opcodes
-typedef enum logic [4:0] {
+typedef enum logic [5:0] {
   LUI,
   AUIPC,
   JAL,
@@ -53,6 +53,15 @@ typedef enum logic [4:0] {
   SL,
   SRL,
   SRA,
+
+  MUL,
+  MULH,
+  MULHSU,
+  MULHU,
+  DIV,
+  DIVU,
+  REM,
+  REMU,
 
   FENCE,
   FENCE_I,
@@ -84,12 +93,14 @@ typedef enum logic [1:0] {
 
 // holds all the information about a decoded instruction
 typedef struct packed {
+  logic        valid;
   operation_t  op;
   register_t   rd;
   register_t   rs1;
   register_t   rs2;
   logic        rs1_used;
   logic        rs2_used;
+  logic        rd_used;
   logic        immediate_used;
   logic [31:0] immediate;
   funct12_t    funct12;
@@ -98,7 +109,13 @@ typedef struct packed {
   logic        memory_read_unsigned;
   mem_width_t  memory_width;
   logic        enable_wb;
+  logic        is_branch;
+  logic        is_jump;
+  logic        is_csr;
+  logic        is_muldiv;
+  logic        is_system;
   logic [31:0] pc;
+  logic [31:0] raw;
 } instr_t;
 
 // all the funct3 codes
@@ -112,6 +129,17 @@ typedef enum logic [2:0] {
   F3_SLL    = 3'b001,
   F3_SR     = 3'b101
 } funct3_op_t;
+
+typedef enum logic [2:0] {
+  F3_MUL    = 3'b000,
+  F3_MULH   = 3'b001,
+  F3_MULHSU = 3'b010,
+  F3_MULHU  = 3'b011,
+  F3_DIV    = 3'b100,
+  F3_DIVU   = 3'b101,
+  F3_REM    = 3'b110,
+  F3_REMU   = 3'b111
+} funct3_muldiv_t;
 
 typedef enum logic [2:0] {
   F3_BEQ  = 3'b000,
@@ -159,7 +187,6 @@ typedef enum logic [1:0] {
   F2_CSRRC = 2'b11
 } funct2_system_t;
 
-
 // CSR addresses
 typedef enum logic [11:0] {
   CYCLE     = 12'hC00,
@@ -168,7 +195,7 @@ typedef enum logic [11:0] {
   CYCLEH    = 12'hC80,
   TIMEH     = 12'hC81,
   INSTRETH  = 12'hC82,
-  MISA      = 12'hF10,
+  MISA      = 12'h301,
   MVENDORID = 12'hF11,
   MARCHID   = 12'hF12,
   MIMPID    = 12'hF13,
@@ -181,61 +208,53 @@ typedef enum logic [11:0] {
   MSCRATCH  = 12'h340,
   MEPC      = 12'h341,
   MCAUSE    = 12'h342,
-  MBADADDR  = 12'h343,
+  MTVAL     = 12'h343,
   MIP       = 12'h344,
-  MCYCLE    = 12'hF00,
-  MTIME     = 12'hF01,
-  MINSTRET  = 12'hF02,
-  MCYCLEH   = 12'hF80,
-  MTIMEH    = 12'hF81,
-  MINSTRETH = 12'hF82,
-  // non-standard but we don't want to memory-map mtimecmp
+  MCYCLE    = 12'hB00,
+  MINSTRET  = 12'hB02,
+  MCYCLEH   = 12'hB80,
+  MINSTRETH = 12'hB82,
   MTIMECMP  = 12'h7C1,
   MTIMECMPH = 12'h7C2,
-  // provisional debug CSRs
   DCSR      = 12'h7B0,
   DPC       = 12'h7B1,
   DSCRATCH  = 12'h7B2
 } csr_t;
 
-// mstatus register
+// mstatus register (RV32 subset used by core)
 typedef struct packed {
   logic       sd;
-  logic [1:0] unused1;
-  logic [4:0] vm;
-  logic [3:0] unused2;
+  logic [7:0] unused1;
+  logic       tsr;
+  logic       tw;
+  logic       tvm;
   logic       mxr;
-  logic       pum;
+  logic       sum;
   logic       mprv;
   logic [1:0] xs;
   logic [1:0] fs;
   logic [1:0] mpp;
-  logic [1:0] hpp;
+  logic [1:0] vs;
   logic       spp;
   logic       mpie;
-  logic       hpie;
+  logic       ube;
   logic       spie;
-  logic       upie;
+  logic       unused2;
   logic       mie;
-  logic       hie;
+  logic       unused3;
   logic       sie;
-  logic       uie;
+  logic       unused4;
 } mstatus_t;
 
-// mcause register
 typedef enum logic [31:0] {
-  // interrupt codes have the top bit set to 1.
   USI = {1'b1, 31'd0},
   SSI = {1'b1, 31'd1},
-  HSI = {1'b1, 31'd2},
   MSI = {1'b1, 31'd3},
   UTI = {1'b1, 31'd4},
   STI = {1'b1, 31'd5},
-  HTI = {1'b1, 31'd6},
   MTI = {1'b1, 31'd7},
   UEI = {1'b1, 31'd8},
   SEI = {1'b1, 31'd9},
-  HEI = {1'b1, 31'd10},
   MEI = {1'b1, 31'd11},
   INSTR_MISALIGN = 32'd0,
   INSTR_FAULT    = 32'd1,
@@ -247,41 +266,47 @@ typedef enum logic [31:0] {
   STORE_FAULT    = 32'd7,
   ECALL_U        = 32'd8,
   ECALL_S        = 32'd9,
-  ECALL_H        = 32'd10,
   ECALL_M        = 32'd11
 } mcause_t;
 
-
-// machine interrupts pending register
 typedef struct packed {
   logic [19:0] unused;
   logic meip;
-  logic heip;
+  logic unused1;
   logic seip;
-  logic ueip;
+  logic unused2;
   logic mtip;
-  logic htip;
+  logic unused3;
   logic stip;
-  logic utip;
+  logic unused4;
   logic msip;
-  logic hsip;
+  logic unused5;
   logic ssip;
-  logic usip;
+  logic unused6;
 } mip_t;
 
-// machine interrupts enabled register
 typedef struct packed {
   logic [19:0] unused;
   logic meie;
-  logic heie;
+  logic unused1;
   logic seie;
-  logic ueie;
+  logic unused2;
   logic mtie;
-  logic htie;
+  logic unused3;
   logic stie;
-  logic utie;
+  logic unused4;
   logic msie;
-  logic hsie;
+  logic unused5;
   logic ssie;
-  logic usie;
+  logic unused6;
 } mie_t;
+
+// Pipeline helper: EX result select
+typedef enum logic [2:0] {
+  RES_ALU,
+  RES_MEM,
+  RES_PC4,
+  RES_IMM,
+  RES_CSR,
+  RES_MULDIV
+} result_src_t;

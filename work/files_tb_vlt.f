@@ -1,0 +1,14 @@
+../pkg/core_pkg.sv
++incdir+../includes
+../rtl/alu.sv
+../rtl/regfile.sv
+../rtl/lsu.sv
+../rtl/muldiv.sv
+../rtl/btb.sv
+../rtl/branch_predictor.sv
+../rtl/forward_unit.sv
+../rtl/hazard_unit.sv
+../rtl/csr_file.sv
+../rtl/decoder.sv
+../rtl/core.sv
+../dv/tb_top.sv

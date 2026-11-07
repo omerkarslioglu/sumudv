@@ -1,15 +1,22 @@
+#!/usr/bin/env python3
 import json
 import argparse
 import os
 
-parser = argparse.ArgumentParser()
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+
+parser = argparse.ArgumentParser(
+    description="Generate dv/env/config_auto.svh from dv/cfg/<name>.json"
+)
 parser.add_argument("config_name", help="JSON config name (without path or extension)")
 args = parser.parse_args()
 
-json_file = f"../test/configs/{args.config_name}.json" # fix it
-svh_file = "../env/config_auto.svh" # fix it
+json_file = os.path.join(REPO_ROOT, "dv", "cfg", f"{args.config_name}.json")
+svh_file = os.path.join(REPO_ROOT, "dv", "env", "config_auto.svh")
 
-def flatten_dict(d, parent_key='', sep='.'):
+
+def flatten_dict(d, parent_key="", sep="."):
     items = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
@@ -19,10 +26,13 @@ def flatten_dict(d, parent_key='', sep='.'):
             items.append((new_key, v))
     return dict(items)
 
+
 with open(json_file) as f:
     data = json.load(f)
 
 flat_data = flatten_dict(data)
+
+os.makedirs(os.path.dirname(svh_file), exist_ok=True)
 
 with open(svh_file, "w") as svf:
     svf.write("// Auto-generated from config.json\n")
@@ -34,7 +44,7 @@ with open(svh_file, "w") as svf:
         if isinstance(v, str):
             svf.write(f'  cfg_array["{k}"] = "{v}";\n')
         else:
-            svf.write(f'  cfg_array["{k}"] = {v};\n')
+            svf.write(f"  cfg_array[\"{k}\"] = {v};\n")
     svf.write("endfunction\n")
 
-print(f"? Generated {svh_file} from {json_file} ({len(flat_data)} entries).")
+print(f"Generated {svh_file} from {json_file} ({len(flat_data)} entries).")
